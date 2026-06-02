@@ -137,6 +137,12 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
+doc_events = {
+	"WhatsApp Message": {
+		"after_insert": "frappe_whatsapp_addon.frappe_whatsapp_addon.custom_scripts.whatsapp_message.whatsapp_message.after_insert"
+	}
+}
+
 # doc_events = {
 # 	"*": {
 # 		"on_update": "method",

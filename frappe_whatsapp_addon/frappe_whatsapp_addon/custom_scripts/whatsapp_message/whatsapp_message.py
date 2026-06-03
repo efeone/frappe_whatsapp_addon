@@ -2,14 +2,17 @@ import frappe
 import frappe.utils
 
 def after_insert(doc, method):
-	if doc.type == 'Incoming':
-		phone_number = doc.get('from')
-		patient = get_patient_from_number(phone_number)
-		message_txt = doc.message
-		if 'book' in message_txt.lower():
-			create_patient_appointment(doc, patient)
-		if 'cancel' in message_txt.lower():
-			cancel_patient_appointment(doc, patient)
+	try:
+		if doc.type == 'Incoming':
+			phone_number = doc.get('from')
+			patient = get_patient_from_number(phone_number)
+			message_txt = doc.message
+			if 'book' in message_txt.lower():
+				create_patient_appointment(doc, patient)
+			if 'cancel' in message_txt.lower():
+				cancel_patient_appointment(doc, patient)
+	except Exception as e:
+		frappe.log_error(message=f"Error processing WhatsApp message: {str(e)}", title="WhatsApp Message Processing Error")
 
 def create_patient_appointment(doc, patient):
 	healthcare_practitioner = frappe.db.get_single_value('Frappe Health Config', 'healthcare_practitioner')
@@ -34,10 +37,14 @@ def cancel_patient_appointment(doc, patient):
 		frappe.db.set_value('Patient Appointment', appointment.name, 'status', 'Cancelled')
 
 def get_patient_from_number(phone_number):
-	deafault_patient = frappe.db.get_single_value('Frappe Health Config', 'patient')
 	patient = frappe.get_all('Patient', filters={'mobile': phone_number}, fields=['name'])
 	if patient:
 		return patient[0].name
-	if deafault_patient:
-		return deafault_patient
-	return None
+	patient_doc = frappe.new_doc('Patient')
+	patient_doc.mobile = phone_number
+	patient_doc.first_name = phone_number
+	patient_doc.sex = 'Male'
+	patient_doc.invite_user = 0
+	patient_doc.ignore_mandatory = True
+	patient_doc.insert(ignore_permissions=True)
+	return patient_doc.name

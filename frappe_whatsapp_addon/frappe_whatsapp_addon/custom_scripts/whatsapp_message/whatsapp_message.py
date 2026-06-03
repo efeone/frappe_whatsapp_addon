@@ -5,7 +5,8 @@ def after_insert(doc, method):
 	try:
 		if doc.type == 'Incoming':
 			phone_number = doc.get('from')
-			patient = get_patient_from_number(phone_number)
+			profile_name = doc.get('profile_name')
+			patient = get_patient_from_number(phone_number, profile_name)
 			message_txt = doc.message
 			if 'book' in message_txt.lower():
 				create_patient_appointment(doc, patient)
@@ -26,7 +27,8 @@ def create_patient_appointment(doc, patient):
 			'appointment_date': frappe.utils.add_days(frappe.utils.nowdate(), 1),
 			'appointment_time': '11:00',
 			'appointment_type': appointment_type,
-			'appointment_for': 'Practitioner'
+			'appointment_for': 'Practitioner',
+			'service_unit': 'General OP - FH'
 		})
 		appointment.flags.ingore_mandatory = True
 		appointment.insert(ignore_permissions=True)
@@ -36,13 +38,15 @@ def cancel_patient_appointment(doc, patient):
 	for appointment in patient_appointments:
 		frappe.db.set_value('Patient Appointment', appointment.name, 'status', 'Cancelled')
 
-def get_patient_from_number(phone_number):
+def get_patient_from_number(phone_number, profile_name=None):
 	patient = frappe.get_all('Patient', filters={'mobile': phone_number}, fields=['name'])
 	if patient:
 		return patient[0].name
+	if not profile_name:
+		profile_name = phone_number
 	patient_doc = frappe.new_doc('Patient')
 	patient_doc.mobile = phone_number
-	patient_doc.first_name = phone_number
+	patient_doc.first_name = profile_name
 	patient_doc.sex = 'Male'
 	patient_doc.invite_user = 0
 	patient_doc.ignore_mandatory = True
